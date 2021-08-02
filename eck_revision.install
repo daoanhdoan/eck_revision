@@ -1,0 +1,10 @@
+<?php
+/**
+ * @file
+ */
+/**
+ * Implement hook_install()
+ */
+function eck_revision_install() {
+  module_set_weight('eck_revision', 99999);
+}

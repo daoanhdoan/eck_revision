@@ -1,0 +1,7 @@
+name: 'ECK Revision'
+type: module
+description: 'Revision ECK contrib module'
+core_version_requirement: ^9
+package: 'Custom'
+dependencies:
+  - eck

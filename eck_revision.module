@@ -1,0 +1,77 @@
+<?php
+/**
+ *
+ */
+
+use Drupal\Core\Config\Entity\ConfigEntityInterface;
+use Drupal\Core\Entity\ContentEntityTypeInterface;
+
+/**
+ * Implements @see hook_entity_type_build().
+ * @param \Drupal\Core\Entity\EntityTypeInterface[] $entity_types
+ */
+function eck_revision_entity_type_build(array &$entity_types)
+{
+  static $recursionDepth;
+
+  // Infinite loops can occur when workspaces module is enabled. We therefore
+  // keep track of the number of times this function is called without being
+  // completed. We know we're in an infinite recursion when that number grows
+  // beyond 1, so we just return early to break out of the recursion.
+  if ($recursionDepth++ > 2) {
+    return;
+  }
+
+  // Check for eck_entity_type config entity.
+  if (!empty($entity_types['eck_entity_type'])) {
+    /** @var ConfigEntityInterface $eck_entity_type */
+    $eck_entity_type = $entity_types['eck_entity_type'];
+    $config_export = $eck_entity_type->get('config_export');
+    $config_export[] = 'vid';
+    $entity_types["eck_entity_type"]->set('config_export', $config_export);
+    $entity_types["eck_entity_type"]->setFormClass('add', Drupal\eck_revision\Form\EntityType\EckRevisionEntityTypeAddForm::class);
+    $entity_types["eck_entity_type"]->setFormClass('edit', Drupal\eck_revision\Form\EntityType\EckRevisionEntityTypeEditForm::class);
+
+    $eck_types = \Drupal::entityTypeManager()->createHandlerInstance(
+      $eck_entity_type->getHandlerClass('storage'),
+      $eck_entity_type
+    )->loadMultiple();
+
+    // Add custom particular definitions for each entity.
+    foreach ($eck_types as $eck_type) {
+      $eck_name = $eck_type->id;
+      $config = \Drupal::config("eck.eck_entity_type.{$eck_name}" );
+      if (empty($config->get('vid'))) {
+        continue;
+      }
+      // Add the new content entity to the entity types.
+      $entity_types[$eck_name]->setHandlerClass('views_data', Drupal\eck_revision\EckRevisionViewsData::class);
+      $entity_types[$eck_name]->setClass(Drupal\eck_revision\Entity\EckRevisionEntity::class);
+      $entity_types[$eck_name]->setFormClass('add', Drupal\eck_revision\Form\Entity\EckRevisionEntityForm::class);
+      $entity_types[$eck_name]->setFormClass('edit', Drupal\eck_revision\Form\Entity\EckRevisionEntityForm::class);
+      $entity_types[$eck_name]->setLinkTemplate('version-history', "/{$eck_name}/{{$eck_name}}/revisions");
+      $entity_types[$eck_name]->setLinkTemplate('revision', "/{$eck_name}/{{$eck_name}}/revisions/{{$eck_name}_revision}");
+      /** @var ContentEntityTypeInterface $type */
+
+      $entity_keys = $entity_types[$eck_name]->getKeys();
+      $entity_keys['revision'] = 'vid';
+      $entity_keys['published'] = 'status';
+      $entity_keys['owner'] = 'uid';
+      $entity_types[$eck_name]->set('entity_keys', $entity_keys);
+
+      if ($entity_types[$eck_name] instanceof ContentEntityTypeInterface) {
+        $entity_types[$eck_name]->setRevisionMetadataKey('revision_user', 'revision_uid');
+        $entity_types[$eck_name]->setRevisionMetadataKey('revision_created', 'revision_timestamp');
+        $entity_types[$eck_name]->setRevisionMetadataKey('revision_log_message', 'revision_log');
+      }
+
+      $entity_types[$eck_name]->set('revision_table', $eck_name . '_revision');
+      $entity_types[$eck_name]->set('revision_data_table', $eck_name . '_field_revision');
+      $entity_types[$eck_name]->set('show_revision_ui', TRUE);
+    }
+  }
+
+  // We reset the recursion depth tracker to ensure consecutive calls to this
+  // function don't return without processing.
+  $recursionDepth = 0;
+}

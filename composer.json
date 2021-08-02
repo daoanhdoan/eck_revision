@@ -1,0 +1,9 @@
+{
+  "name": "daoanhdoan/eck_revision",
+  "description": "ECK Revision - Revision ECK contrib module",
+  "type": "drupal-custom-module",
+  "license":"GPL-2.0",
+  "extra": {
+    "installer-name": "eck_revision"
+  }
+}
