@@ -5,5 +5,8 @@
   "license":"GPL-2.0",
   "extra": {
     "installer-name": "eck_revision"
-  }
+  },
+    "require": {
+        "drupal/eck": "*"
+    }
 }
